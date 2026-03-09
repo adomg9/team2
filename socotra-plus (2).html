@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>أداة محاكاة سقطرى بلس</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ocean: #0a1628;
+    --deep: #0d1f3c;
+    --surface: #112240;
+    --card: #1a2f4e;
+    --border: #1e3a5f;
+    --gold: #f0a500;
+    --gold-light: #ffc947;
+    --teal: #00d4aa;
+    --teal-dim: #00a382;
+    --text: #e8f0fe;
+    --text-dim: #8bafd4;
+    --accent: #ff6b35;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--ocean);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,170,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(240,165,0,0.05) 0%, transparent 50%);
+    pointer-events:none; z-index:0;
+  }
+
+  /* ===== API KEY SCREEN ===== */
+  #apiScreen {
+    position: fixed; inset:0; z-index:100;
+    align-items: center; justify-content: center;
+    background: var(--ocean);
+    padding: 24px;
+  }
+  #apiScreen.show { display: flex; }
+  .api-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 44px 40px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    animation: fadeUp .7s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .api-card::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background: linear-gradient(90deg, var(--gold), var(--teal));
+  }
+  .api-logo {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+  }
+  .api-card h2 {
+    font-family: 'Amiri', serif;
+    font-size: 26px;
+    background: linear-gradient(135deg, var(--gold-light), var(--teal));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  .api-card p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 28px;
+  }
+  .api-card p a {
+    color: var(--teal);
+    text-decoration: none;
+  }
+  .api-card p a:hover { text-decoration: underline; }
+  .api-input-wrap {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .api-input-wrap input {
+    width: 100%;
+    background: var(--deep);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 50px 14px 18px;
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    direction: ltr;
+    text-align: left;
+    transition: border-color .3s, box-shadow .3s;
+    outline: none;
+    letter-spacing: 1px;
+  }
+  .api-input-wrap input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(0,212,170,0.09);
+  }
+  .api-input-wrap input::placeholder { color: rgba(139,175,212,0.35); letter-spacing:0; }
+  .toggle-eye {
+    position: absolute;
+    left: 14px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: var(--text-dim); cursor: pointer;
+    font-size: 16px;
+    transition: color .3s;
+  }
+  .toggle-eye:hover { color: var(--teal); }
+  .api-note {
+    background: rgba(0,212,170,0.06);
+    border: 1px solid rgba(0,212,170,0.15);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 22px;
+    text-align: right;
+    line-height: 1.7;
+  }
+  .api-note span { color: var(--teal); font-weight: 700; }
+  .btn-enter {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--gold) 0%, #e09500 50%, var(--teal-dim) 100%);
+    border: none; border-radius: 12px;
+    color: var(--ocean);
+    font-family: 'Cairo', sans-serif;
+    font-size: 16px; font-weight: 900;
+    cursor: pointer;
+    transition: all .3s;
+  }
+  .btn-enter:hover { transform: translateY(-2px); box-shadow: 0 10px 35px rgba(240,165,0,0.3); }
+  .btn-enter:active { transform: translateY(0); }
+  .api-error {
+    display: none;
+    color: var(--accent);
+    font-size: 13px;
+    margin-top: 12px;
+  }
+  .api-error.show { display: block; }
+
+  /* ===== MAIN APP ===== */
+  #mainApp {
+    display: none;
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  #mainApp.show { display: block; }
+
+  .header { text-align:center; margin-bottom:48px; animation: fadeDown .8s ease; }
+  .logo-badge {
+    display:inline-flex; align-items:center; gap:10px;
+    background: linear-gradient(135deg,rgba(240,165,0,.14),rgba(0,212,170,.09));
+    border:1px solid rgba(240,165,0,.28); border-radius:50px;
+    padding:7px 20px; margin-bottom:18px;
+    font-size:13px; color:var(--gold); letter-spacing:1px;
+  }
+  h1 {
+    font-family:'Amiri',serif;
+    font-size:clamp(26px,5vw,44px); font-weight:700;
+    background:linear-gradient(135deg,var(--gold-light) 0%,var(--gold) 40%,var(--teal) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    line-height:1.3; margin-bottom:12px;
+  }
+  .subtitle { color:var(--text-dim); font-size:14px; max-width:500px; margin:0 auto; line-height:1.8; }
+
+  .api-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(0,212,170,0.05);
+    border: 1px solid rgba(0,212,170,0.15);
+    border-radius: 12px;
+    padding: 10px 18px;
+    margin-bottom: 28px;
+    font-size: 13px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .api-status { display:flex; align-items:center; gap:8px; }
+  .api-dot { width:8px; height:8px; background:var(--teal); border-radius:50%; }
+  .btn-change-key {
+    background:transparent; border:1px solid var(--border);
+    border-radius:8px; padding:5px 12px;
+    color:var(--text-dim); font-family:'Cairo',sans-serif;
+    font-size:12px; cursor:pointer; transition:all .3s;
+  }
+  .btn-change-key:hover { border-color:var(--accent); color:var(--accent); }
+
+  .section-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:20px; padding:30px; margin-bottom:24px;
+    animation: fadeUp .8s ease .2s both;
+    position:relative; overflow:hidden;
+  }
+  .section-card::before {
+    content:''; position:absolute; top:0; right:0;
+    width:180px; height:180px;
+    background:radial-gradient(circle,rgba(240,165,0,0.04) 0%,transparent 70%);
+    pointer-events:none;
+  }
+  .section-label {
+    font-size:12px; color:var(--teal); font-weight:700;
+    letter-spacing:1.4px; text-transform:uppercase;
+    margin-bottom:13px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label::before { content:''; width:4px; height:16px; background:var(--teal); border-radius:2px; display:inline-block; }
+  textarea {
+    width:100%; background:var(--deep); border:1px solid var(--border);
+    border-radius:14px; padding:16px 18px; color:var(--text);
+    font-family:'Cairo',sans-serif; font-size:15px; line-height:1.8;
+    resize:vertical; min-height:120px; direction:rtl;
+    transition:border-color .3s,box-shadow .3s; outline:none;
+  }
+  textarea:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(0,212,170,0.08); }
+  textarea::placeholder { color:rgba(139,175,212,0.38); }
+  .options-row { display:flex; gap:12px; margin-top:16px; flex-wrap:wrap; }
+  .select-wrap { flex:1; min-width:150px; }
+  .select-wrap label { display:block; font-size:12px; color:var(--text-dim); margin-bottom:7px; }
+  select {
+    width:100%; background:var(--deep); border:1px solid var(--border);
+    border-radius:10px; padding:10px 13px; color:var(--text);
+    font-family:'Cairo',sans-serif; font-size:14px; direction:rtl;
+    cursor:pointer; transition:border-color .3s; outline:none;
+  }
+  select:focus { border-color:var(--teal); }
+  .btn-generate {
+    width:100%; padding:17px; margin-top:20px;
+    background:linear-gradient(135deg,var(--gold) 0%,#e09500 50%,var(--teal-dim) 100%);
+    border:none; border-radius:14px; color:var(--ocean);
+    font-family:'Cairo',sans-serif; font-size:17px; font-weight:900;
+    cursor:pointer; transition:all .3s; position:relative; overflow:hidden;
+  }
+  .btn-generate:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 12px 40px rgba(240,165,0,0.3); }
+  .btn-generate:active:not(:disabled) { transform:translateY(0); }
+  .btn-generate:disabled { opacity:.6; cursor:not-allowed; }
+  .loading-bar { display:none; margin-top:14px; height:3px; background:var(--border); border-radius:10px; overflow:hidden; }
+  .loading-bar.on { display:block; }
+  .loading-bar::after {
+    content:''; display:block; height:100%; width:38%;
+    background:linear-gradient(90deg,var(--teal),var(--gold));
+    border-radius:10px; animation:shimmer 1.3s ease-in-out infinite;
+  }
+  .loading-txt { display:none; text-align:center; color:var(--text-dim); font-size:14px; margin-top:13px; animation:pulse 1.4s infinite; }
+  .loading-txt.on { display:block; }
+  .err-box { display:none; background:rgba(255,107,53,.09); border:1px solid rgba(255,107,53,.28); border-radius:12px; padding:13px 18px; color:var(--accent); font-size:14px; text-align:center; margin-top:14px; }
+  .err-box.on { display:block; }
+
+  .output-wrap { display:none; animation:fadeUp .6s ease; }
+  .output-wrap.on { display:block; }
+  .out-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+  .out-title { font-size:18px; font-weight:800; color:var(--gold); display:flex; align-items:center; gap:10px; }
+  .tweet-badge { background:rgba(0,212,170,.1); border:1px solid rgba(0,212,170,.28); border-radius:20px; padding:3px 13px; font-size:12px; color:var(--teal); }
+  .btn-copy-all { background:rgba(240,165,0,.1); border:1px solid rgba(240,165,0,.28); border-radius:10px; padding:9px 17px; color:var(--gold); font-family:'Cairo',sans-serif; font-size:13px; cursor:pointer; transition:background .3s; font-weight:700; }
+  .btn-copy-all:hover { background:rgba(240,165,0,.2); }
+
+  .tweet-card { background:var(--card); border:1px solid var(--border); padding:22px 24px; transition:border-color .3s; }
+  .tweet-card:first-child { border-radius:18px 18px 0 0; }
+  .tweet-card:last-child { border-radius:0 0 18px 18px; }
+  .tweet-card:not(:first-child) { border-top:none; }
+  .tweet-card:hover { border-color:rgba(0,212,170,.35); }
+  .tweet-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:13px; }
+  .tweet-num { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--teal-dim)); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:var(--ocean); flex-shrink:0; }
+  .btn-copy { background:transparent; border:1px solid var(--border); border-radius:8px; padding:5px 12px; color:var(--text-dim); font-family:'Cairo',sans-serif; font-size:12px; cursor:pointer; transition:all .3s; }
+  .btn-copy:hover, .btn-copy.done { border-color:var(--teal); color:var(--teal); background:rgba(0,212,170,.06); }
+  .tweet-body { font-size:15px; line-height:2; color:var(--text); white-space:pre-wrap; direction:rtl; }
+  .char-c { margin-top:9px; font-size:11px; color:var(--text-dim); text-align:left; opacity:.55; }
+  .char-c.over { color:var(--accent); opacity:1; }
+
+  .footer { text-align:center; margin-top:56px; color:rgba(139,175,212,0.25); font-size:12px; }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(18px)}  to{opacity:1;transform:translateY(0)} }
+  @keyframes shimmer  { 0%{transform:translateX(-200%)} 100%{transform:translateX(400%)} }
+  @keyframes pulse    { 0%,100%{opacity:.5} 50%{opacity:1} }
+  @media(max-width:600px){ .options-row{flex-direction:column} .out-header{flex-direction:column;align-items:flex-start} }
+</style>
+</head>
+<body>
+
+<!-- ===== PASSWORD SCREEN ===== -->
+<div id="pwScreen" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:#0a1628;padding:24px;">
+  <div style="background:#112240;border:1px solid #1e3a5f;border-radius:24px;padding:44px 40px;max-width:420px;width:100%;text-align:center;animation:fadeUp .7s ease;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f0a500,#00d4aa);"></div>
+    <div style="font-size:48px;margin-bottom:16px;">🔐</div>
+    <h2 style="font-family:'Amiri',serif;font-size:24px;background:linear-gradient(135deg,#ffc947,#00d4aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px;">أداة محاكاة سقطرى بلس</h2>
+    <p style="color:#8bafd4;font-size:14px;line-height:1.8;margin-bottom:26px;">هذه الأداة خاصة — أدخل كلمة المرور للمتابعة</p>
+    <div style="position:relative;margin-bottom:14px;">
+      <input type="password" id="pwInput" placeholder="أدخل كلمة المرور..." onkeydown="if(event.key==='Enter')checkPw()" style="width:100%;background:#0d1f3c;border:1px solid #1e3a5f;border-radius:12px;padding:14px 18px;color:#e8f0fe;font-family:'Cairo',sans-serif;font-size:15px;direction:rtl;outline:none;transition:border-color .3s;box-sizing:border-box;" onfocus="this.style.borderColor='#00d4aa'" onblur="this.style.borderColor='#1e3a5f'"/>
+    </div>
+    <button onclick="checkPw()" style="width:100%;padding:15px;background:linear-gradient(135deg,#f0a500,#e09500 50%,#00a382);border:none;border-radius:12px;color:#0a1628;font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:all .3s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 10px 35px rgba(240,165,0,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+      🚀 دخول
+    </button>
+    <div id="pwError" style="display:none;color:#ff6b35;font-size:13px;margin-top:12px;">⚠️ كلمة المرور غير صحيحة</div>
+  </div>
+</div>
+
+<!-- ===== API KEY SCREEN ===== -->
+<div id="apiScreen" style="display:none;">
+  <div class="api-card">
+    <span class="api-logo">🏝️</span>
+    <h2>أداة محاكاة سقطرى بلس</h2>
+    <p>
+      هذه الأداة تعمل عبر Anthropic API.<br>
+      أدخل مفتاحك للبدء — يمكنك الحصول عليه من
+      <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>
+    </p>
+    <div class="api-input-wrap">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+      <button class="toggle-eye" onclick="toggleEye()" id="eyeBtn">👁️</button>
+    </div>
+    <div class="api-note">
+      🔒 <span>مفتاحك آمن تماماً</span> — يُحفظ في متصفحك فقط ولا يُرسل لأي خادم غير Anthropic مباشرةً.
+    </div>
+    <button class="btn-enter" onclick="enterApp()">🚀 ابدأ الاستخدام</button>
+    <div class="api-error" id="apiError">⚠️ من فضلك أدخل مفتاح API صحيح يبدأ بـ sk-ant</div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="mainApp">
+  <div class="header">
+    <div class="logo-badge"><span>🏝️</span> أداة ذكاء اصطناعي</div>
+    <h1>أداة محاكاة سقطرى بلس</h1>
+    <p class="subtitle">اكتب فكرة ثريدك، وستكتبه الأداة بأسلوب سقطرى بلس المميز في التاريخ والثقافة</p>
+  </div>
+
+  <div class="api-bar">
+    <div class="api-status">
+      <div class="api-dot"></div>
+      <span>API key متصل • <span id="keyPreview"></span></span>
+    </div>
+    <button class="btn-change-key" onclick="changeKey()">🔑 تغيير المفتاح</button>
+  </div>
+
+  <div class="section-card">
+    <div class="section-label">فكرة الثريد</div>
+    <textarea id="topicInput" placeholder="مثال: قصة اختراع البارود وكيف غير مجرى التاريخ...&#10;أو: كيف نجحت اليابان في النهوض بعد الحرب العالمية الثانية...&#10;أو: أسرار بناء الأهرامات التي لم يكشفها أحد..."></textarea>
+
+    <div class="options-row">
+      <div class="select-wrap">
+        <label>عدد التغريدات</label>
+        <select id="tweetCount">
+          <option value="5">5 تغريدات</option>
+          <option value="7" selected>7 تغريدات</option>
+          <option value="10">10 تغريدات</option>
+          <option value="12">12 تغريدة</option>
+        </select>
+      </div>
+      <div class="select-wrap">
+        <label>نوع المحتوى</label>
+        <select id="contentType">
+          <option value="history">تاريخي</option>
+          <option value="science">علمي</option>
+          <option value="geography">جغرافي / دول</option>
+          <option value="culture">ثقافي / حضاري</option>
+          <option value="mixed" selected>متنوع</option>
+        </select>
+      </div>
+      <div class="select-wrap">
+        <label>مستوى الإثارة</label>
+        <select id="intensity">
+          <option value="medium">متوازن</option>
+          <option value="high" selected>مثير ودرامي</option>
+          <option value="max">أقصى إثارة</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="genBtn" onclick="generate()">✨ ابدأ توليد الثريد</button>
+    <div class="loading-bar" id="lBar"></div>
+    <div class="loading-txt" id="lTxt">🖊️ جاري كتابة الثريد بأسلوب سقطرى بلس...</div>
+    <div class="err-box" id="errBox"></div>
+  </div>
+
+  <div class="output-wrap" id="outputWrap">
+    <div class="out-header">
+      <div class="out-title">🏝️ الثريد جاهز <span class="tweet-badge" id="cntBadge"></span></div>
+      <button class="btn-copy-all" id="copyAllBtn" onclick="copyAll()">📋 نسخ كل الثريد</button>
+    </div>
+    <div id="threadContainer"></div>
+  </div>
+
+  <div class="footer">أداة محاكاة سقطرى بلس · مدعوم بـ Anthropic API</div>
+</div>
+
+<script>
+const SYSTEM = `أنت كاتب محترف يكتب ثريدات تويتر بأسلوب حساب "سقطرى بلس" المميز.
+
+خصائص أسلوب سقطرى بلس التي يجب محاكاتها بدقة:
+1. الافتتاحية الصادمة: يبدأ التغريدة الأولى بسؤال أو معلومة صادمة تخلق فضولاً فورياً لا يقاوم
+2. السرد القصصي التدريجي: يبني القصة كفيلم وثائقي - من البداية للذروة للخاتمة
+3. الجمل القصيرة المضغوطة: جمل قصيرة ثم ضربة درامية، مش فقرات أكاديمية طويلة
+4. علامات التعجب المتعددة: يستخدم !!! أو !!!! في اللحظات المفصلية لرفع الإثارة
+5. التشبيهات التبسيطية: يشبّه المفاهيم الصعبة بأشياء يومية مألوفة للقارئ
+6. مخاطبة القارئ مباشرة: "تخيل معي / دعنا / أنت الآن"
+7. الأرقام والإحصاءات الصادمة: يدعم كلامه بأرقام مذهلة لإثبات الفكرة
+8. الربط بالحاضر: يربط الأحداث التاريخية أو العلمية بواقعنا اليوم
+9. الخاتمة التفاعلية: ينتهي بسؤال مفتوح يستدعي التعليق، أو بجملة فلسفية قوية تلخص الدرس
+10. نبرة راوي القصص: مش معلم في مدرسة، بل راوي قصص شيّق كأنه يحكي في نار
+
+الأسلوب اللغوي:
+- عربي فصيح واضح لكن بأسلوب عصري غير متكلف
+- أحياناً يستخدم عبارات قوية مثل: "المفارقة التاريخية العظمى" / "الجنون البشري الحقيقي" / "الحقيقة المرعبة"
+- نهاية كل تغريدة تجعلك تريد قراءة التالية
+
+قواعد الإخراج:
+- اكتب فقط التغريدات، بدون أي شرح أو مقدمة
+- افصل كل تغريدة بـ --- فقط على سطر وحده
+- لا تكتب "التغريدة 1" أو أي ترقيم
+- كل تغريدة لا تتجاوز 280 حرف إن أمكن`;
+
+let apiKey = '';
+let tweets = [];
+
+// ---- API KEY SCREEN ----
+function toggleEye() {
+  const inp = document.getElementById('apiKeyInput');
+  const btn = document.getElementById('eyeBtn');
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁️'; }
+}
+
+function enterApp() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  const err = document.getElementById('apiError');
+  if (!val.startsWith('sk-ant')) { err.classList.add('show'); return; }
+  err.classList.remove('show');
+  apiKey = val;
+  // Save to sessionStorage (tab only, never persists)
+  sessionStorage.setItem('sq_key', btoa(apiKey));
+  showMain();
+}
+
+function showMain() {
+  document.getElementById('apiScreen').style.display = 'none';
+  document.getElementById('mainApp').classList.add('show');
+  const preview = apiKey.slice(0,10) + '...' + apiKey.slice(-4);
+  document.getElementById('keyPreview').textContent = preview;
+}
+
+function changeKey() {
+  sessionStorage.removeItem('sq_key');
+  apiKey = '';
+  document.getElementById('mainApp').classList.remove('show');
+  document.getElementById('apiScreen').style.display = 'flex';
+  document.getElementById('apiKeyInput').value = '';
+}
+
+// ---- PASSWORD ----
+const CORRECT_PW = 'socotra-plus';
+
+function checkPw() {
+  const val = document.getElementById('pwInput').value;
+  const err = document.getElementById('pwError');
+  if (val === CORRECT_PW) {
+    sessionStorage.setItem('sq_pw', '1');
+    document.getElementById('pwScreen').style.display = 'none';
+    document.getElementById('apiScreen').style.removeProperty('display');
+    // restore api key if saved
+    const saved = sessionStorage.getItem('sq_key');
+    if (saved) {
+      try { apiKey = atob(saved); if (apiKey.startsWith('sk-ant')) { document.getElementById('apiScreen').style.display = 'none'; showMain(); } }
+      catch(e) {}
+    }
+  } else {
+    err.style.display = 'block';
+    document.getElementById('pwInput').style.borderColor = '#ff6b35';
+    setTimeout(() => { document.getElementById('pwInput').style.borderColor = '#1e3a5f'; }, 1500);
+  }
+}
+
+// Auto-restore key from session
+window.addEventListener('DOMContentLoaded', () => {
+  // Check password first
+  const pwOk = sessionStorage.getItem('sq_pw');
+  if (pwOk) {
+    document.getElementById('pwScreen').style.display = 'none';
+    document.getElementById('apiScreen').style.removeProperty('display');
+    const saved = sessionStorage.getItem('sq_key');
+    if (saved) {
+      try { apiKey = atob(saved); if (apiKey.startsWith('sk-ant')) { document.getElementById('apiScreen').style.display = 'none'; showMain(); } }
+      catch(e) {}
+    }
+  }
+  document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') enterApp();
+  });
+});
+
+// ---- GENERATOR ----
+const typeMap = { history:'تاريخي', science:'علمي تبسيطي', geography:'جغرافي عن دول أو حضارات', culture:'ثقافي وحضاري', mixed:'متنوع يجمع التاريخ والعلوم والثقافة' };
+const intensityMap = { medium:'توازن بين الإثارة والمعلومة', high:'درامي ومثير ويحافظ على المصداقية', max:'أقصى قدر من الإثارة والتشويق والصدمة' };
+
+async function generate() {
+  const topic = document.getElementById('topicInput').value.trim();
+  if (!topic) { showErr('⚠️ من فضلك أدخل فكرة الثريد أولاً'); return; }
+  const count = document.getElementById('tweetCount').value;
+  const type  = document.getElementById('contentType').value;
+  const inten = document.getElementById('intensity').value;
+
+  setLoading(true); clearErr();
+  document.getElementById('outputWrap').classList.remove('on');
+
+  const prompt = `اكتب ثريد تويتر من ${count} تغريدات متصلة عن الموضوع التالي:\n"${topic}"\n\nنوع المحتوى: ${typeMap[type]}\nمستوى الإثارة: ${intensityMap[inten]}\n\nتذكر: محاكاة دقيقة لأسلوب سقطرى بلس، افصل التغريدات بـ --- فقط على سطر منفصل.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (res.status === 401) { showErr('❌ مفتاح API غير صحيح أو منتهي الصلاحية.'); setLoading(false); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('');
+    tweets = text.split(/\n---\n/).map(t => t.trim()).filter(t => t.length > 10);
+    if (!tweets.length) throw new Error('no tweets');
+    renderTweets();
+  } catch(e) {
+    showErr('❌ حدث خطأ أثناء التوليد. تحقق من مفتاحك وحاول مرة أخرى.');
+  }
+  setLoading(false);
+}
+
+function renderTweets() {
+  const c = document.getElementById('threadContainer');
+  c.innerHTML = '';
+  tweets.forEach((tw, i) => {
+    const over = tw.length > 280;
+    const card = document.createElement('div');
+    card.className = 'tweet-card';
+    card.style.animation = `fadeUp .4s ease ${i * 0.07}s both`;
+    card.innerHTML = `
+      <div class="tweet-head">
+        <div class="tweet-num">${i+1}</div>
+        <button class="btn-copy" id="cb${i}" onclick="copyOne(${i})">📋 نسخ</button>
+      </div>
+      <div class="tweet-body" id="tb${i}">${tw}</div>
+      <div class="char-c ${over?'over':''}">${tw.length} حرف ${over?'⚠️ يتجاوز 280':''}</div>`;
+    c.appendChild(card);
+  });
+  document.getElementById('cntBadge').textContent = tweets.length + ' تغريدات';
+  document.getElementById('outputWrap').classList.add('on');
+  document.getElementById('outputWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyOne(i) {
+  navigator.clipboard.writeText(tweets[i]);
+  const btn = document.getElementById('cb' + i);
+  btn.textContent = '✅ تم'; btn.classList.add('done');
+  setTimeout(() => { btn.textContent = '📋 نسخ'; btn.classList.remove('done'); }, 2000);
+}
+
+function copyAll() {
+  const text = tweets.map((t, i) => `${i+1}/ ${t}`).join('\n\n');
+  navigator.clipboard.writeText(text);
+  const btn = document.getElementById('copyAllBtn');
+  btn.textContent = '✅ تم نسخ الكل';
+  setTimeout(() => { btn.textContent = '📋 نسخ كل الثريد'; }, 2500);
+}
+
+function setLoading(on) {
+  document.getElementById('genBtn').disabled = on;
+  document.getElementById('genBtn').textContent = on ? '⏳ جاري التوليد...' : '✨ ابدأ توليد الثريد';
+  document.getElementById('lBar').classList.toggle('on', on);
+  document.getElementById('lTxt').classList.toggle('on', on);
+}
+function showErr(msg) { const b = document.getElementById('errBox'); b.textContent = msg; b.classList.add('on'); }
+function clearErr() { document.getElementById('errBox').classList.remove('on'); }
+</script>
+</body>
+</html>
